@@ -1,42 +1,44 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NearestCoordinate
 {
-    public class Clusterer
+    public class KMeansClustering<T>
     {
         public uint NumberOfClusters { get; private set; }
         public uint ClusteringIteration { get; private set; }
 
-        private List<Vector2D>[] clusters;
+        private List<ClusterNode<T>>[] clusters;
         private Vector2D[] centroids;
 
-        public Clusterer(uint numberOfClusters = 4, uint clusteringIteration = 16)
+        public KMeansClustering(uint numberOfClusters = 4, uint clusteringIteration = 16)
         {
             NumberOfClusters = numberOfClusters;
             ClusteringIteration = clusteringIteration;
         }
 
         /// <summary>
-        /// Perform clustering (k-means or other algorithm)
+        /// Perform clustering (k-means algorithm)
         /// </summary>
         /// <param name="coordinates">Coordinates List</param>
-        /// <param name="numberOfClusters">Number of clusters</param>
-        /// <param name="clusteringIteration">Number iteration of clustering</param>
-        public void PerformClustering(List<Vector2D> coordinates)
+        public void PerformClustering(List<ClusterNode<T>> coordinates)
         {
+            clusters = null;
+            centroids = null;
+
             // Step 1: Initialize clusters and centroids
-            clusters = new List<Vector2D>[NumberOfClusters];
+            clusters = new List<ClusterNode<T>>[NumberOfClusters];
             for (int i = 0; i < NumberOfClusters; i++)
             {
-                clusters[i] = new List<Vector2D>();
+                clusters[i] = new List<ClusterNode<T>>();
             }
 
             // Initialize centroids
             centroids = new Vector2D[NumberOfClusters];
             for (int i = 0; i < NumberOfClusters; i++)
             {
-                centroids[i] = coordinates[Random.Range(0, coordinates.Count - 1)];
+                centroids[i] = coordinates[Random.Range(0, coordinates.Count - 1)].Point;
             }
 
             // Perform k-means clustering
@@ -52,10 +54,10 @@ namespace NearestCoordinate
                 foreach (var coord in coordinates)
                 {
                     int nearestClusterIndex = 0;
-                    double minDistance = Vector2D.Distance(coord, centroids[0]);
+                    double minDistance = Vector2D.Distance(coord.Point, centroids[0]);
                     for (int i = 1; i < centroids.Length; i++)
                     {
-                        double distance = Vector2D.Distance(coord, centroids[i]);
+                        double distance = Vector2D.Distance(coord.Point, centroids[i]);
                         if (distance < minDistance)
                         {
                             nearestClusterIndex = i;
@@ -73,7 +75,7 @@ namespace NearestCoordinate
                         Vector2D sum = Vector2D.zero;
                         foreach (var coord in clusters[i])
                         {
-                            sum += coord;
+                            sum += coord.Point;
                         }
                         centroids[i] = sum / clusters[i].Count;
                     }
@@ -94,15 +96,15 @@ namespace NearestCoordinate
                 Vector2D sum = Vector2D.zero;
                 for (int j = 0; j < clusters[i].Count; j++)
                 {
-                    sum += clusters[i][j];
+                    sum += clusters[i][j].Point;
                 }
                 centroids[i] = sum / clusters[i].Count;
 
-                Debug.Log($"Clusters[{i}]: {string.Join(", ", clusters[i])}\ncentroids[{i}]: {centroids[i]}");
+                Debug.Log($"Clusters[{i}]: {string.Join(", ", clusters[i].Select(x => x.Point).ToList())}\ncentroids[{i}]: {centroids[i]}");
             }
         }
 
-        public Vector2D FindNearest(Vector2D queryCoordinate)
+        public ClusterNode<T> FindNearest(Vector2D queryCoordinate)
         {
             // Step 3: Find nearest cluster
             int nearestClusterIndex = 0;
@@ -120,11 +122,11 @@ namespace NearestCoordinate
             }
 
             // Step 4: Search within the nearest cluster
-            Vector2D nearestCoordinate = clusters[nearestClusterIndex][0];
-            minDistance = Vector2D.Distance(queryCoordinate, nearestCoordinate);
+            var nearestCoordinate = clusters[nearestClusterIndex][0];
+            minDistance = Vector2D.Distance(queryCoordinate, nearestCoordinate.Point);
             for (int i = 1; i < clusters[nearestClusterIndex].Count; i++)
             {
-                double distance = Vector2D.Distance(queryCoordinate, clusters[nearestClusterIndex][i]);
+                double distance = Vector2D.Distance(queryCoordinate, clusters[nearestClusterIndex][i].Point);
                 if (distance < minDistance)
                 {
                     nearestCoordinate = clusters[nearestClusterIndex][i];
@@ -135,5 +137,4 @@ namespace NearestCoordinate
             return nearestCoordinate;
         }
     }
-
 }

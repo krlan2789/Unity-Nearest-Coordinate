@@ -28,7 +28,7 @@ namespace NearestCoordinate
         private Ball3 ball3Algo;
 
         // Ball Tree
-        private Clusterer clustererAlgo;
+        private KMeansClustering<string> clustererAlgo;
 
         private void Start()
         {
@@ -118,19 +118,32 @@ namespace NearestCoordinate
         #region Cluster - K-Means
         public void ClusterInitializeAsync()
         {
-            clustererAlgo = new Clusterer(4, 32);
+            clustererAlgo = new KMeansClustering<string>(4, 32);
 
-            clustererAlgo.PerformClustering(points);
+            var nodes = new List<ClusterNode<string>>();
+
+            int a = 1;
+            foreach (var point in points)
+            {
+                nodes.Add(new ClusterNode<string>()
+                {
+                    Point = point,
+                    data = $"Store {a}"
+                });
+                a++;
+            }
+
+            clustererAlgo.PerformClustering(nodes);
         }
 
         public void ClusterSearch()
         {
-            Vector2D nearest = clustererAlgo.FindNearest(targetPoint);
+            var nearest = clustererAlgo.FindNearest(targetPoint);
             resultTxt.text =
                 $"-> Target: {targetPoint}\n" +
-                $"-> Point: {nearest}, {Vector2D.Distance(targetPoint, nearest)}";
+                $"-> Nearest: {nearest.data} {nearest.Point}\nDistance: {Vector2D.Distance(targetPoint, nearest.Point)}";
 
-            Debug.Log($"Index[{points.IndexOf(nearest)}]:\n{resultTxt.text}");
+            Debug.Log($"Index[{points.IndexOf(nearest.Point)}]: {nearest.data}\n{resultTxt.text}");
         }
         #endregion Cluster - K-Means
     }
