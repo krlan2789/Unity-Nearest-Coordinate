@@ -2,6 +2,8 @@ using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using System.Collections;
+using Unity.Mathematics;
+using System.Linq;
 
 namespace NearestCoordinate
 {
@@ -10,6 +12,7 @@ namespace NearestCoordinate
         public enum Algorythm
         {
             BALL_TREE = 0,
+            KD_TREE = 1,
             CLUSTERER_KMEANS = 2,
         }
 
@@ -26,8 +29,9 @@ namespace NearestCoordinate
 
         // Ball Tree
         private Ball3 ball3Algo;
-
         // Ball Tree
+        private KD3 kd3Algo;
+        // K-Means clustering
         private KMeansClustering<string> clustererAlgo;
 
         private void Start()
@@ -48,7 +52,7 @@ namespace NearestCoordinate
                 for (int i = 0; i < dataLength; i++)
                 {
                     yield return null;
-                    Vector2D point = new(Random.Range((float)rangeCoordinate.x, (float)rangeCoordinate.y), Random.Range((float)rangeCoordinate.x, (float)rangeCoordinate.y));
+                    Vector2D point = new(UnityEngine.Random.Range((float)rangeCoordinate.x, (float)rangeCoordinate.y), UnityEngine.Random.Range((float)rangeCoordinate.x, (float)rangeCoordinate.y));
                     points.Add(point);
                 }
             } else
@@ -57,17 +61,26 @@ namespace NearestCoordinate
                 points.Add(new(-16, -9)); // Store 2
                 points.Add(new(20, 40)); // Store 3
                 points.Add(new(-17, 1)); // Store 4
-                points.Add(new(13, -30)); // Store 5
+                points.Add(new(13, -39)); // Store 5
                 points.Add(new(40, 10)); // Store 6
-                points.Add(new(42, -22)); // Store 7
+                points.Add(new(50, -22)); // Store 7
                 points.Add(new(-36, 29)); // Store 8
-                points.Add(new(-33, -20)); // Store 9
+                points.Add(new(-33, -28)); // Store 9
+                points.Add(new(-56, 2)); // Store 10
+                points.Add(new(-12, -48)); // Store 11
+                points.Add(new(-25, 25)); // Store 12
+                points.Add(new(0, -24)); // Store 13
+                points.Add(new(20, 20)); // Store 14
+                points.Add(new(33, -4)); // Store 15
             }
 
             switch (algorythmUse)
             {
                 case Algorythm.BALL_TREE:
                     Ball3InitializeAsync();
+                    break;
+                case Algorythm.KD_TREE:
+                    KD3InitializeAsync();
                     break;
                 default:
                     ClusterInitializeAsync();
@@ -84,6 +97,9 @@ namespace NearestCoordinate
             {
                 case Algorythm.BALL_TREE:
                     Ball3Search();
+                    break;
+                case Algorythm.KD_TREE:
+                    KD3Search();
                     break;
                 default:
                     ClusterSearch();
@@ -114,6 +130,24 @@ namespace NearestCoordinate
             Debug.Log($"Index[{points.IndexOf(nearest.Point)}]:\n{resultTxt.text}");
         }
         #endregion Ball3
+
+        #region KD-Tree
+        public void KD3InitializeAsync()
+        {
+            kd3Algo = new KD3();
+            kd3Algo.Build(points.Select(e => e.ToFloat2()).ToArray());
+        }
+
+        public void KD3Search()
+        {
+            var nearest = kd3Algo.FindNearest(targetPoint.ToFloat2());
+            resultTxt.text =
+                $"-> Target: {targetPoint}\n" +
+                $"-> Point: {nearest.Point.ToVector2D()}, {Vector2D.Distance(targetPoint, nearest.Point.ToVector2D())}";
+
+            Debug.Log($"Index[{points.IndexOf(nearest.Point.ToVector2D())}]:\n{resultTxt.text}");
+        }
+        #endregion KD-Tree
 
         #region Cluster - K-Means
         public void ClusterInitializeAsync()

@@ -1,106 +1,91 @@
-using System;
+using System.Collections.Generic;
+using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace NearestCoordinate
 {
+
     public class KD3
     {
-        private class KDNode
+        public class KdNode
         {
-            public double[] Point { get; set; }
-            public KDNode Left { get; set; }
-            public KDNode Right { get; set; }
-
-            public KDNode(double[] point)
-            {
-                Point = point;
-                Left = null;
-                Right = null;
-            }
+            public float2 Point;
+            public KdNode Left;
+            public KdNode Right;
         }
 
-        private KDNode root;
-        private int k;
+        private KdNode root;
 
-        public KD3(int dimensions)
+        public void Build(float2[] points)
         {
-            k = dimensions;
-            root = new KDNode(new double[k]);
+            root = BuildRecursive(points, 0, points.Length - 1, 0);
         }
 
-        public void Insert(double[] point)
+        private KdNode BuildRecursive(float2[] points, int start, int end, int depth)
         {
-            root = InsertRec(root, point, 0);
-        }
+            if (start > end)
+                return null;
 
-        public void Insert(double[][] points)
-        {
-            for (int i = 0; i < points.Length; i++)
-            {
-                root = InsertRec(root, points[i], 0);
-            }
-        }
+            int axis = depth % 2;
+            int median = (start + end) / 2;
 
-        private KDNode InsertRec(KDNode node, double[] point, int depth)
-        {
-            if (node == null)
-            {
-                return new KDNode(point);
-            }
+            SortByAxis(points, start, end, axis);
+            KdNode node = new KdNode { Point = points[median] };
 
-            int cd = depth % k;
-            //Debug.Log($"{depth} % {k} = {cd} | point.Length: {point.Length} | node.Point.Length: {node.Point?.Length}");
-
-            if (point[cd] < node.Point[cd])
-            {
-                node.Left = InsertRec(node.Left, point, depth + 1);
-            } else
-            {
-                node.Right = InsertRec(node.Right, point, depth + 1);
-            }
+            node.Left = BuildRecursive(points, start, median - 1, depth + 1);
+            node.Right = BuildRecursive(points, median + 1, end, depth + 1);
 
             return node;
         }
 
-        public double[] Nearest(double[] target)
+        private void SortByAxis(float2[] points, int start, int end, int axis)
         {
-            return NearestRec(root, target, 0, new KDNode(null)).Point;
+            System.Array.Sort(points, start, end - start + 1, Comparer<float2>.Create((a, b) =>
+                axis == 0 ? a.x.CompareTo(b.x) : a.y.CompareTo(b.y)
+            ));
         }
 
-        private KDNode NearestRec(KDNode node, double[] target, int depth, KDNode best)
+        public KdNode FindNearest(float2 target)
+        {
+            return FindNearestRecursive(root, target, 0);
+        }
+
+        private KdNode FindNearestRecursive(KdNode node, float2 target, int depth)
         {
             if (node == null)
-            {
-                return best;
-            }
+                return null;
 
-            if (best == null || Distance(node.Point, target) < Distance(best.Point, target))
-            {
+            int axis = depth % 2;
+            KdNode nextNode = target[axis] < node.Point[axis] ? node.Left : node.Right;
+            KdNode otherNode = target[axis] < node.Point[axis] ? node.Right : node.Left;
+
+            KdNode best = FindNearestRecursive(nextNode, target, depth + 1) ?? node;
+            if (math.distancesq(target, node.Point) < math.distancesq(target, best.Point))
                 best = node;
-            }
 
-            int cd = depth % k;
-
-            KDNode goodSide = target[cd] < node.Point[cd] ? node.Left : node.Right;
-            KDNode badSide = target[cd] < node.Point[cd] ? node.Right : node.Left;
-
-            best = NearestRec(goodSide, target, depth + 1, best);
-            if (Math.Abs(node.Point[cd] - target[cd]) < Distance(best.Point, target))
+            float distToPlane = target[axis] - node.Point[axis];
+            if (distToPlane * distToPlane < math.distancesq(target, best.Point))
             {
-                best = NearestRec(badSide, target, depth + 1, best);
+                KdNode possibleBest = FindNearestRecursive(otherNode, target, depth + 1);
+                if (possibleBest != null && math.distancesq(target, possibleBest.Point) < math.distancesq(target, best.Point))
+                    best = possibleBest;
             }
 
             return best;
         }
+    }
 
-        private double Distance(double[] a, double[] b)
+    public static class Float2Extension
+    {
+        public static Vector2D ToVector2D(this float2 current)
         {
-            double dist = 0;
-            for (int i = 0; i < a.Length; i++)
-            {
-                dist += Math.Pow(a[i] - b[i], 2);
-            }
-            return Math.Sqrt(dist);
+            return new Vector2D(current.x, current.y);
+        }
+
+        public static float2 ToFloat2(this Vector2D current)
+        {
+            return new float2((float)current.x, (float)current.y);
         }
     }
 }
